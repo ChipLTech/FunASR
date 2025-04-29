@@ -30,6 +30,8 @@ from funasr.train_utils.load_pretrained_model import load_pretrained_model
 from funasr.utils import export_utils
 from funasr.utils import misc
 
+from funasr.utils import use_dlc, debug_print
+
 try:
     from funasr.models.campplus.utils import sv_chunk, postprocess, distribute_spk
     from funasr.models.campplus.cluster_backend import ClusterBackend
@@ -182,9 +184,10 @@ class AutoModel:
         set_all_random_seed(kwargs.get("seed", 0))
 
         device = kwargs.get("device", "cuda")
-        if not torch.cuda.is_available() or kwargs.get("ngpu", 1) == 0:
-            device = "cpu"
-            kwargs["batch_size"] = 1
+        if not use_dlc():
+            if not torch.cuda.is_available() or kwargs.get("ngpu", 1) == 0:
+                device = "cpu"
+                kwargs["batch_size"] = 1
         kwargs["device"] = device
 
         torch.set_num_threads(kwargs.get("ncpu", 4))
@@ -373,6 +376,9 @@ class AutoModel:
         if device.type == "cuda":
             with torch.cuda.device(device):
                 torch.cuda.empty_cache()
+        if device.type == "dlc":
+            with torch.dlc.device(device):
+                torch.dlc.empty_cache()
         return asr_result_list
 
     def inference_with_vad(self, input, input_len=None, **cfg):
